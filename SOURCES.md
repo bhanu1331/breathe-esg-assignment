@@ -1,56 +1,41 @@
 # SOURCES.md
 
 ## Overview
-This document describes the real-world source formats researched for each ingestion pipeline, what assumptions were made, how sample data was modeled, and limitations for production deployment.
+This prototype was designed after researching realistic enterprise ESG data ingestion patterns.
+
+The goal was not to simulate ideal clean APIs, but to model how operational data commonly reaches ESG reporting systems in real organizations.
+
+This document explains the real-world source assumptions, why certain formats were chosen, what the sample data represents, and what limitations remain.
 
 ---
 
-# 1. SAP Source Research
+# 1. SAP Source (Fuel / Procurement Data)
 
-## Real-world formats researched
-SAP enterprise data can be exposed through:
+## Real-world source research
+SAP enterprise data can be exposed through multiple integration mechanisms:
 
 - IDoc
 - BAPI
 - OData services
-- flat-file CSV / Excel exports
+- Flat file exports (CSV / Excel)
 
-For this prototype, flat-file export was selected.
-
----
-
-## Why this format was chosen
-Although SAP supports API-based integrations, many enterprise ESG reporting workflows still rely on exported procurement and fuel extracts from finance or operations teams.
-
-Flat-file ingestion is realistic because:
-- finance teams often export CSVs for reconciliation
-- easier prototype validation
-- avoids SAP environment dependency
-- simpler analyst testing workflow
+For ESG workflows, especially in prototype and manual reporting scenarios, flat-file exports are still common because procurement and finance teams frequently export operational data for reconciliation.
 
 ---
 
-## What was learned
-SAP data is often messy.
+## Chosen prototype format
+CSV upload representing SAP flat export.
 
-Typical challenges:
-- cryptic plant codes
-- inconsistent units
-- multilingual headers
-- procurement category ambiguity
-- date formatting inconsistencies
+Reason:
+This allowed realistic ingestion without requiring SAP credentials, API setup, or environment dependencies.
 
-Examples:
-- German labels
-- material descriptions that require mapping
-- internal vendor identifiers
+This matches a practical onboarding scenario where a client provides exported operational extracts.
 
 ---
 
 ## Sample data design
-Prototype SAP sample:
+The SAP sample includes:
 
-Fields:
 - Document Number
 - Plant Code
 - Material Description
@@ -59,73 +44,74 @@ Fields:
 - Posting Date
 - Vendor
 
+Example:
+
+Diesel fuel procurement records.
+
 Why:
-These represent a simplified but plausible fuel procurement export.
+These fields realistically represent procurement-style operational activity relevant to Scope 1 emissions.
 
-Example use case:
-Diesel procurement records later mapped into Scope 1 operational activity.
+Example ESG interpretation:
+Fuel purchased for operational consumption.
 
 ---
 
-## What would break in production
-This prototype does not handle:
+## Real-world challenges identified
+SAP data can be difficult because:
+
+- inconsistent export schemas
+- cryptic plant identifiers
+- procurement category ambiguity
+- German/localized headers
+- inconsistent date formats
+- mixed units
+
+Examples:
+- Liter vs gallons
+- DD.MM.YYYY vs ISO dates
+- abbreviated material descriptions
+
+---
+
+## Production limitations
+Not implemented:
+
 - SAP authentication
-- OData pagination
+- OData integration
 - IDoc parsing
-- multilingual header normalization
-- plant lookup mapping
-- procurement category disambiguation
-- schema drift
-
-Production implementation would require configurable ingestion adapters.
+- BAPI connectors
+- plant lookup resolution
+- multilingual field normalization
+- procurement hierarchy parsing
 
 ---
 
-# 2. Utility Source Research
+# 2. Utility Electricity Source
 
-## Real-world formats researched
-Utility data commonly arrives through:
+## Real-world source research
+Utility data commonly reaches enterprise ESG systems through:
 
-- utility web portal CSV export
-- PDF bills
-- utility APIs (less common depending on provider)
+- provider web portal CSV export
+- PDF utility bills
+- utility APIs (when available)
 
-For this prototype, CSV export was selected.
-
----
-
-## Why this format was chosen
-Facilities teams frequently export billing data manually from utility portals.
-
-Compared to PDF parsing:
-CSV is:
-- structured
-- deterministic
-- easier to validate
-- better for rapid prototyping
+Facilities teams often manually download electricity usage reports.
 
 ---
 
-## What was learned
-Utility datasets often include:
-- meter identifiers
-- billing periods
-- tariff classes
-- demand vs consumption values
-- inconsistent unit scales
+## Chosen prototype format
+CSV upload representing utility portal export.
 
-Challenges:
-- multiple meters
-- overlapping billing periods
-- cost vs consumption confusion
-- MWh vs kWh normalization
+Reason:
+CSV is structured, deterministic, and practical for a prototype.
+
+PDF parsing would require OCR and document extraction logic that is outside prototype scope.
 
 ---
 
 ## Sample data design
-Prototype utility sample:
+The utility sample includes:
 
-Fields:
 - Meter ID
 - Billing Start
 - Billing End
@@ -134,74 +120,72 @@ Fields:
 - Tariff
 
 Why:
-Represents realistic exported portal billing consumption data.
+These fields are typical of electricity usage exports.
 
 Example:
-commercial electricity usage mapped into Scope 2.
+Monthly electricity consumption from a facility meter.
+
+Mapped ESG interpretation:
+Scope 2 purchased electricity.
 
 ---
 
-## What would break in production
-Not handled:
-- PDF OCR parsing
+## Real-world challenges identified
+Utility data often includes:
+
+- multiple meters
+- inconsistent billing cycles
+- tariff complexity
+- demand vs consumption confusion
+- mixed units
+
+Examples:
+- MWh vs kWh
+- overlapping billing periods
+- estimated usage corrections
+
+---
+
+## Production limitations
+Not implemented:
+
+- PDF parsing
+- OCR extraction
+- utility APIs
+- tariff cost modeling
+- billing normalization
 - multi-meter aggregation
-- provider-specific schemas
-- utility authentication
-- API integrations
-- demand charges
-- month boundary normalization
-
-Production would need ingestion adapters and validation rules.
 
 ---
 
-# 3. Travel Source Research
+# 3. Corporate Travel Source
 
-## Real-world formats researched
-Corporate travel systems researched conceptually:
+## Real-world source research
+Corporate travel systems commonly expose data through:
+
+- CSV reports
+- API integrations
+- scheduled exports
+
+Platforms researched conceptually:
 
 - SAP Concur
 - Navan
-- similar enterprise travel platforms
-
-Typical data includes:
-- flights
-- hotels
-- rail
-- taxis
-- trip metadata
-
-For prototype simplicity, CSV export was selected.
+- similar enterprise travel management systems
 
 ---
 
-## Why this format was chosen
-Travel platforms often provide downloadable reports.
+## Chosen prototype format
+CSV upload representing travel export.
 
-CSV export allowed realistic simulation without API authentication complexity.
-
----
-
-## What was learned
-Travel datasets may contain:
-- airport codes
-- itinerary segments
-- booking references
-- hotel nights
-- transport categories
-
-Challenges:
-- missing distances
-- airport-only location identifiers
-- emission factor differences by class
-- multi-leg trip decomposition
+Reason:
+Travel reporting exports are realistic and easier to prototype than authenticated API integrations.
 
 ---
 
 ## Sample data design
-Prototype travel sample:
+The travel sample includes:
 
-Fields:
 - Trip ID
 - Employee
 - Category
@@ -210,41 +194,71 @@ Fields:
 - Distance
 - Distance Unit
 
-Included:
-- flight
-- hotel
-- taxi
-- suspicious flight with zero distance
+Supported categories:
+
+- Flight
+- Hotel
+- Taxi
 
 Why:
-Demonstrates analyst review of both valid and suspicious travel activity.
+These categories reflect common Scope 3 travel activity.
+
+A suspicious example was included:
+
+Flight with zero distance.
+
+This demonstrates anomaly review workflow.
 
 ---
 
-## What would break in production
-Not handled:
-- Concur authentication
-- Navan APIs
-- airport distance resolution
-- hotel emissions modeling
-- class-of-travel factors
+## Real-world challenges identified
+Travel datasets often contain:
+
+- airport codes only
+- missing route distances
+- hotel nights instead of emissions values
+- mixed transport categories
+- duplicate itinerary segments
+
+Examples:
+- HYD → BOM without explicit distance
+- business class vs economy differentiation
+- taxi receipts with incomplete metadata
+
+---
+
+## Production limitations
+Not implemented:
+
+- API authentication
+- airport distance lookup
 - itinerary stitching
-- duplicate trip imports
-
-Production would likely use direct API ingestion with enrichment logic.
+- hotel emissions factor mapping
+- travel class differentiation
+- duplicate detection
 
 ---
 
-# Source selection summary
+# Why CSV was chosen for all sources
+This was a deliberate prototype decision.
 
-Prototype ingestion choices:
+CSV upload offers:
 
-SAP → flat export CSV  
-Utility → portal CSV export  
-Travel → corporate travel CSV export
+- realistic onboarding simulation
+- deterministic testability
+- simpler validation
+- faster prototype delivery
 
-These choices prioritize:
-- realism
-- explainability
-- deterministic testing
-- prototype delivery speed
+In real enterprise onboarding, exported operational files are often the first integration step before deeper API automation.
+
+---
+
+# Design philosophy
+The prototype prioritizes:
+
+- realistic ingestion architecture
+- analyst review workflow
+- audit traceability
+- explainable implementation decisions
+
+over production-complete integrations.

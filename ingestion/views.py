@@ -41,7 +41,14 @@ class SAPUploadView(APIView):
 
             try:
                 quantity = float(row.iloc[3])
-                unit = row.iloc[4]
+                unit = str(row.iloc[4]).lower()
+
+                if unit == "gallons":
+                    normalized_value = quantity * 3.78541
+                    normalized_unit = "liters"
+                else:
+                    normalized_value = quantity
+                    normalized_unit = "liters"
 
                 NormalizedRecord.objects.create(
                     tenant=tenant,
@@ -50,9 +57,9 @@ class SAPUploadView(APIView):
                     scope="SCOPE_1",
                     original_value=quantity,
                     original_unit=unit,
-                    normalized_value=quantity,
-                    normalized_unit="liters",
-                    suspicious=quantity > 10000,
+                    normalized_value=normalized_value,
+                    normalized_unit=normalized_unit,
+                    suspicious=normalized_value > 10000,
                     status="PENDING"
                 )
 
@@ -73,7 +80,7 @@ class SAPUploadView(APIView):
             created_count += 1
 
         return Response({
-            "message": "SAP uploaded",
+            "message": "SAP uploaded successfully",
             "rows_processed": created_count
         }, status=201)
 
@@ -110,7 +117,14 @@ class UtilityUploadView(APIView):
 
             try:
                 consumption = float(row.iloc[3])
-                unit = row.iloc[4]
+                unit = str(row.iloc[4]).lower()
+
+                if unit == "mwh":
+                    normalized_value = consumption * 1000
+                    normalized_unit = "kwh"
+                else:
+                    normalized_value = consumption
+                    normalized_unit = "kwh"
 
                 NormalizedRecord.objects.create(
                     tenant=tenant,
@@ -119,9 +133,9 @@ class UtilityUploadView(APIView):
                     scope="SCOPE_2",
                     original_value=consumption,
                     original_unit=unit,
-                    normalized_value=consumption,
-                    normalized_unit="kWh",
-                    suspicious=consumption > 50000,
+                    normalized_value=normalized_value,
+                    normalized_unit=normalized_unit,
+                    suspicious=normalized_value > 50000,
                     status="PENDING"
                 )
 
@@ -142,7 +156,7 @@ class UtilityUploadView(APIView):
             created_count += 1
 
         return Response({
-            "message": "Utility uploaded",
+            "message": "Utility uploaded successfully",
             "rows_processed": created_count
         }, status=201)
 
@@ -178,12 +192,19 @@ class TravelUploadView(APIView):
             )
 
             try:
-                category = row.iloc[2]
+                category = str(row.iloc[2])
                 distance = float(row.iloc[5])
-                unit = row.iloc[6]
+                unit = str(row.iloc[6]).lower()
+
+                if unit == "miles":
+                    normalized_value = distance * 1.60934
+                    normalized_unit = "km"
+                else:
+                    normalized_value = distance
+                    normalized_unit = "km"
 
                 suspicious = (
-                    str(category).lower() == "flight" and distance == 0
+                    category.lower() == "flight" and normalized_value == 0
                 )
 
                 NormalizedRecord.objects.create(
@@ -193,8 +214,8 @@ class TravelUploadView(APIView):
                     scope="SCOPE_3",
                     original_value=distance,
                     original_unit=unit,
-                    normalized_value=distance,
-                    normalized_unit=unit,
+                    normalized_value=normalized_value,
+                    normalized_unit=normalized_unit,
                     suspicious=suspicious,
                     status="PENDING"
                 )
@@ -216,6 +237,6 @@ class TravelUploadView(APIView):
             created_count += 1
 
         return Response({
-            "message": "Travel uploaded",
+            "message": "Travel uploaded successfully",
             "rows_processed": created_count
         }, status=201)

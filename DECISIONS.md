@@ -1,255 +1,271 @@
 # DECISIONS.md
 
 ## Overview
-This document explains architectural and implementation decisions made during the prototype build, including tradeoffs and assumptions due to assignment constraints.
+This prototype was designed as a pragmatic ESG data ingestion and analyst review system for enterprise onboarding workflows.
+
+Because the assignment timeline was limited to 4 days, I prioritized building a working end-to-end ingestion + review workflow over implementing every real-world edge case.
+
+The main design principle was:
+Build a realistic MVP that demonstrates architectural thinking, auditability, and analyst usability.
 
 ---
 
-## 1. Ingestion mechanism choice
+# 1. Ingestion mechanism choice
 
-### Decision
-Used file upload ingestion for all three source types.
+## Decision
+Used file upload (CSV) ingestion for all three source types.
 
-### Why
-The assignment allowed choosing ingestion mechanisms.
+## Why
+Real enterprise ESG workflows frequently involve manual data exports from source systems.
 
-Given a 4-day prototype constraint, file upload provided:
-- faster implementation
-- reproducible testing
-- deterministic sample inputs
-- easier analyst simulation
+Examples:
+- SAP exports are commonly shared as flat files / CSV extracts
+- Utility teams often export portal billing data as CSV
+- Travel platforms like Concur/Navan support CSV exports
 
-It also reflects realistic operational workflows where enterprise teams often export data manually for ESG reporting.
+CSV upload allowed a realistic prototype without depending on external APIs or credentials.
+
+## Alternatives considered
+- SAP OData integration
+- Utility API ingestion
+- Concur API integration
+
+## Why not chosen
+These require authentication setup, API credentials, rate handling, and significantly more implementation time.
+
+For a prototype, CSV upload demonstrates ingestion logic without unnecessary infrastructure complexity.
 
 ---
 
-## 2. SAP source format choice
+# 2. SAP data subset
 
-### Decision
-Modeled SAP as flat-file CSV export.
+## Decision
+Handled SAP fuel/procurement style flat-file export.
 
-### Why
-SAP integrations can involve:
+## Why
+SAP supports many integration mechanisms:
 - IDoc
-- OData
 - BAPI
-- flat exports
+- OData
+- Flat file exports
 
-For a prototype, flat export was chosen because many finance/procurement teams still export SAP data to CSV or Excel for reconciliation workflows.
+For this prototype, flat file export was chosen because it is common for manual ESG data exchange and easier to validate in an analyst workflow.
 
-CSV ingestion also reduced authentication and SAP environment dependency.
-
-### Subset handled
-Handled:
-- fuel/procurement-style quantity records
-- plant code
-- material description
-- posting date
-- vendor
-
-### Ignored
-Not handled:
-- SAP authentication
-- IDoc parsing
-- multilingual column mapping
-- plant code lookup tables
-- procurement category complexity
-
-### PM question
-Would the client prefer:
-- direct SAP integration
-or
-- batch file ingestion?
-
----
-
-## 3. Utility source choice
-
-### Decision
-Modeled utility ingestion as CSV export from utility portal.
-
-### Why
-Facilities teams commonly export billing/consumption data from web portals.
-
-Compared to PDF parsing:
-CSV is:
-- more structured
-- less error-prone
-- faster to prototype
-
-PDF parsing would require OCR and layout handling beyond prototype scope.
-
-### Subset handled
-Handled:
-- meter identifier
-- billing period
-- consumption
+## Scope handled
+Included:
+- fuel quantity
 - unit
-- tariff type
+- source file traceability
 
-### Ignored
-Not handled:
-- PDF bill parsing
-- utility APIs
-- multi-meter aggregation
-- tariff cost modeling
-- month alignment logic
+Ignored:
+- German column variations
+- plant code lookups
+- procurement category mapping
+- date parsing complexity
 
-### PM question
-Will customers primarily provide:
-- CSV exports
-- PDFs
-- API credentials?
+## Reason
+Prototype scope.
 
 ---
 
-## 4. Travel source choice
+# 3. Utility ingestion format
 
-### Decision
-Modeled travel ingestion as CSV export.
+## Decision
+Handled utility portal CSV export.
 
-### Why
-Corporate travel platforms like Concur or Navan expose structured travel records.
+## Why
+Facilities teams often download CSV usage summaries from electricity provider portals.
 
-For prototype simplicity, CSV export was used to represent:
+CSV provides:
+- billing consumption
+- units
+- usage values
+
+This is realistic for prototype implementation.
+
+## Ignored
+Not implemented:
+- PDF bill OCR parsing
+- tariff breakdown
+- billing cycle alignment
+- demand charges
+
+## Reason
+These would significantly increase complexity.
+
+---
+
+# 4. Travel ingestion format
+
+## Decision
+Handled CSV export representing travel platform data.
+
+## Why
+Corporate travel platforms commonly support CSV reporting exports.
+
+Handled:
+- travel category
+- distance
+- units
+
+Supported categories:
 - flights
-- hotels
+- hotel
 - ground transport
 
-This simulates analyst-import workflows.
-
-### Subset handled
-Handled:
-- trip category
-- origin
-- destination
-- distance
-- distance unit
-
-### Ignored
+## Ignored
 Not handled:
-- airport code distance resolution
-- hotel emissions factors
-- API authentication
-- itinerary segmentation
+- airport code route inference
+- emission factor differences by cabin class
+- hotel room-night normalization
 
-### PM question
-Should travel ingestion be:
-- API-based
-- batch upload
-- both?
+## Reason
+Prototype scope prioritization.
 
 ---
 
-## 5. Database choice
+# 5. Multi-tenancy approach
 
-### Decision
-Used SQLite.
+## Decision
+Used tenant-based data isolation.
 
-### Why
-Fastest prototype database for local development.
+Each ingestion request includes:
 
-Reduces infrastructure complexity.
+tenant_id
 
-Production systems would use PostgreSQL.
+and records are linked to a Tenant model.
 
----
+## Why
+Breathe ESG is enterprise SaaS software.
 
-## 6. Django REST choice
+Different customers must have isolated data.
 
-### Decision
-Used Django REST Framework.
-
-### Why
-Assignment explicitly requested Django REST.
-
-Benefits:
-- rapid API creation
-- serializer support
-- admin interface
-- ORM-backed data model
+This prototype demonstrates multi-tenant architecture without implementing full authentication tenancy enforcement.
 
 ---
 
-## 7. React frontend choice
+# 6. Normalization model design
 
-### Decision
-Used React dashboard.
+## Decision
+Separated raw ingestion records from normalized ESG records.
 
-### Why
-Assignment explicitly required React.
+Models:
+- DataSource
+- RawRecord
+- NormalizedRecord
 
-React provides:
-- responsive UI
-- API integration
-- analyst interaction workflows
+## Why
+This preserves:
+- source traceability
+- auditability
+- normalization transparency
+
+This mirrors realistic data pipeline design.
 
 ---
 
-## 8. Suspicious record logic
+# 7. Suspicious data detection
 
-### Decision
-Implemented rule-based anomaly checks.
+## Decision
+Added simple anomaly rules.
+
+Examples:
+- unusually high utility consumption
+- large SAP fuel values
+- zero-distance flights
+
+## Why
+Assignment explicitly required:
+“what looks suspicious”
+
+This provides a working analyst review mechanism.
+
+## Why simple rules
+A rules-based MVP is easier to explain and defend than introducing ML heuristics without validation.
+
+---
+
+# 8. Failed ingestion handling
+
+## Decision
+Created FAILED workflow for invalid rows.
+
+If parsing fails:
+- row is preserved
+- marked FAILED
+- visible to analysts
+
+## Why
+Assignment required:
+“what failed”
+
+Dropping bad rows silently would reduce auditability.
+
+---
+
+# 9. Analyst approval workflow
+
+## Decision
+Implemented:
+- APPROVE
+- REJECT
+- LOCK
+
+## Why
+Assignment required analyst review before audit lock.
+
+This simulates realistic governance workflow.
 
 Rules:
-- fuel > 10000
-- electricity > 50000
-- flight distance = 0
-
-### Why
-Prototype needed suspicious review functionality.
-
-Simple deterministic rules demonstrate analyst escalation flow.
-
-### PM question
-Should suspicious detection use:
-- business thresholds
-- ML anomaly detection
-- configurable tenant rules?
+- pending → approved/rejected
+- approved → locked
+- locked records immutable
 
 ---
 
-## 9. Failed ingestion handling
+# 10. Auditability approach
 
-### Decision
-Bad rows are converted into FAILED normalized records instead of crashing ingestion.
+## Decision
+Stored:
+- source file
+- uploader
+- raw payload
+- timestamps
+- review status
+- audit logs
 
-### Why
-Assignment required analysts to see failed records.
+## Why
+Audit defensibility is central to ESG reporting workflows.
 
-This improves reliability and audit visibility.
-
----
-
-## 10. Audit locking
-
-### Decision
-Added LOCKED status.
-
-### Why
-Assignment explicitly states:
-approve rows before they are locked for audit.
-
-Locked records reject further changes.
+Analysts and auditors need full traceability.
 
 ---
 
-## 11. Multi-tenancy
+# 11. Authentication scope
 
-### Decision
-Tenant isolation enforced through foreign keys.
+## Decision
+Used Django admin + prototype endpoints instead of full RBAC auth.
 
-### Why
-Breathe ESG serves multiple enterprise customers.
+## Why
+Assignment focused on ingestion/review architecture rather than production auth.
 
-Prototype must avoid tenant data mixing.
+Full auth would be a production enhancement.
 
 ---
 
-## Design summary
+# Questions I would ask the PM
 
-This prototype prioritizes:
-- auditability
-- explainability
-- realistic enterprise workflows
-- fast prototype delivery
+1. Which SAP integration path is expected?
+CSV, OData, IDoc, or BAPI?
+
+2. Should utility ingestion support PDFs?
+
+3. Should travel emissions be calculated from airport codes when distance is missing?
+
+4. What approval rules should lock records?
+
+5. Are edits allowed after approval?
+
+6. Should tenants be fully isolated by authentication context?
+
+7. What external audit export format is required?
