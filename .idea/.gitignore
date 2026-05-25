@@ -1,5 +1,7 @@
-# Default ignored files
-/shelf/
-/workspace.xml
-# Editor-based HTTP Client requests
-/httpRequests/
+venv/
+__pycache__/
+db.sqlite3
+*.pyc
+.env
+node_modules/
+dist/
