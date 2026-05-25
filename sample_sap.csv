@@ -1,0 +1,4 @@
+Document Number,Plant Code,Material Description,Quantity,Unit,Posting Date,Vendor
+45000123,PLT01,Diesel Fuel,500,L,2026-05-01,Shell
+45000124,PLT02,Diesel Fuel,15000,L,2026-05-03,BP
+45000125,PLT03,Lubricant,200,L,2026-05-05,Castrol

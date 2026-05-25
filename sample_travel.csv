@@ -1,0 +1,5 @@
+Trip ID,Employee,Category,From,To,Distance,Distance Unit
+TR001,Bhanu,Flight,HYD,BOM,620,km
+TR002,Bhanu,Hotel,Mumbai,,2,nights
+TR003,Bhanu,Taxi,Mumbai Airport,Hotel,20,km
+TR004,Bhanu,Flight,DEL,BLR,0,km
