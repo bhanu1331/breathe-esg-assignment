@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+const API = import.meta.env.VITE_API_URL;
+
 function App() {
   const [records, setRecords] = useState([]);
   const [file, setFile] = useState(null);
@@ -8,14 +10,18 @@ function App() {
   const [filter, setFilter] = useState("all");
 
   const fetchRecords = async () => {
-    let url = "http://127.0.0.1:8000/api/records/";
+    let url = `${API}/api/records/`;
 
     if (filter === "pending") {
-      url = "http://127.0.0.1:8000/api/records/pending/";
+      url = `${API}/api/records/pending/`;
     }
 
     if (filter === "suspicious") {
-      url = "http://127.0.0.1:8000/api/records/suspicious/";
+      url = `${API}/api/records/suspicious/`;
+    }
+
+    if (filter === "failed") {
+      url = `${API}/api/records/failed/`;
     }
 
     const res = await axios.get(url);
@@ -38,7 +44,7 @@ function App() {
     formData.append("file", file);
 
     await axios.post(
-      `http://127.0.0.1:8000/api/upload/${source}/`,
+      `${API}/api/upload/${source}/`,
       formData
     );
 
@@ -48,12 +54,17 @@ function App() {
   };
 
   const approveRecord = async (id) => {
-    await axios.patch(`http://127.0.0.1:8000/api/records/${id}/approve/`);
+    await axios.patch(`${API}/api/records/${id}/approve/`);
     fetchRecords();
   };
 
   const rejectRecord = async (id) => {
-    await axios.patch(`http://127.0.0.1:8000/api/records/${id}/reject/`);
+    await axios.patch(`${API}/api/records/${id}/reject/`);
+    fetchRecords();
+  };
+
+  const lockRecord = async (id) => {
+    await axios.patch(`${API}/api/records/${id}/lock/`);
     fetchRecords();
   };
 
@@ -72,6 +83,26 @@ function App() {
       return {
         backgroundColor: "#fee2e2",
         color: "#991b1b",
+        padding: "6px 12px",
+        borderRadius: "20px",
+        fontWeight: "bold",
+      };
+    }
+
+    if (status === "LOCKED") {
+      return {
+        backgroundColor: "#dbeafe",
+        color: "#1e40af",
+        padding: "6px 12px",
+        borderRadius: "20px",
+        fontWeight: "bold",
+      };
+    }
+
+    if (status === "FAILED") {
+      return {
+        backgroundColor: "#f3f4f6",
+        color: "#111827",
         padding: "6px 12px",
         borderRadius: "20px",
         fontWeight: "bold",
@@ -143,52 +174,14 @@ function App() {
             onChange={(e) => setFile(e.target.files[0])}
           />
 
-          <button
-            onClick={uploadFile}
-            style={{
-              backgroundColor: "#2563eb",
-              color: "white",
-              padding: "10px 18px",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={uploadFile}>
             Upload
           </button>
 
-          <button
-            onClick={() => setFilter("all")}
-            style={{
-              padding: "10px 15px",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            All
-          </button>
-
-          <button
-            onClick={() => setFilter("pending")}
-            style={{
-              padding: "10px 15px",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            Pending
-          </button>
-
-          <button
-            onClick={() => setFilter("suspicious")}
-            style={{
-              padding: "10px 15px",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            Suspicious
-          </button>
+          <button onClick={() => setFilter("all")}>All</button>
+          <button onClick={() => setFilter("pending")}>Pending</button>
+          <button onClick={() => setFilter("suspicious")}>Suspicious</button>
+          <button onClick={() => setFilter("failed")}>Failed</button>
         </div>
       </div>
 
@@ -209,7 +202,7 @@ function App() {
         >
           <thead>
             <tr style={{ backgroundColor: "#e2e8f0" }}>
-              <th style={{ padding: "12px" }}>ID</th>
+              <th>ID</th>
               <th>Activity</th>
               <th>Scope</th>
               <th>Value</th>
@@ -222,54 +215,27 @@ function App() {
 
           <tbody>
             {records.map((record) => (
-              <tr
-                key={record.id}
-                style={{
-                  backgroundColor: record.suspicious ? "#fff7ed" : "white",
-                  borderBottom: "1px solid #e5e7eb",
-                }}
-              >
-                <td style={{ padding: "12px" }}>{record.id}</td>
+              <tr key={record.id}>
+                <td>{record.id}</td>
                 <td>{record.activity_type}</td>
                 <td>{record.scope}</td>
                 <td>{record.original_value}</td>
                 <td>{record.original_unit}</td>
-                <td>
-                  {record.suspicious ? "⚠ Yes" : "No"}
-                </td>
+                <td>{record.suspicious ? "⚠ Yes" : "No"}</td>
                 <td>
                   <span style={badgeStyle(record.status)}>
                     {record.status}
                   </span>
                 </td>
                 <td>
-                  <button
-                    onClick={() => approveRecord(record.id)}
-                    style={{
-                      backgroundColor: "#16a34a",
-                      color: "white",
-                      border: "none",
-                      padding: "8px 12px",
-                      borderRadius: "6px",
-                      marginRight: "8px",
-                      cursor: "pointer",
-                    }}
-                  >
+                  <button onClick={() => approveRecord(record.id)}>
                     Approve
                   </button>
-
-                  <button
-                    onClick={() => rejectRecord(record.id)}
-                    style={{
-                      backgroundColor: "#dc2626",
-                      color: "white",
-                      border: "none",
-                      padding: "8px 12px",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                    }}
-                  >
+                  <button onClick={() => rejectRecord(record.id)}>
                     Reject
+                  </button>
+                  <button onClick={() => lockRecord(record.id)}>
+                    Lock
                   </button>
                 </td>
               </tr>
